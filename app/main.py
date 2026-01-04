@@ -108,6 +108,10 @@ async def paystack_webhook(
 
     return {"status": "success"}
 
+@app.get("/health")
+def health_check():
+    return {"status": "ok"}
+
 
 
 
