@@ -3,4 +3,5 @@ uvicorn
 autogen-agentchat
 requests
 python-dotenv
+autogen-ext
 
