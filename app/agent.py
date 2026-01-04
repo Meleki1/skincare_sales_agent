@@ -4,6 +4,7 @@ import os
 from app.services.memory import ConversationMemory
 from app.services.intent import detect_intent
 from app.services.controller import handle_intent_action
+from autogen_agentchat.agents import config_list_from_json, set_default_llm_config
 
 
 
@@ -12,38 +13,32 @@ from app.services.controller import handle_intent_action
 memory = ConversationMemory()
 
 
-def get_llm_config():
-    """
-    Returns the LLM configuration for AutoGen.
-    We keep this in a function so it can be reused or modified later.
-    """
-    return {
-        "config_list": [
-            {
-                "model": "gpt-4o-mini",
-                "api_key": os.getenv("OPENAI_API_KEY"),
-            }
-        ],
-        "temperature": 0.4,  # lower = more controlled, better for sales
-    }
+
+import os
+
+set_default_llm_config({
+    "config_list": [
+        {
+            "model": "gpt-4o-mini",
+            "api_key": os.getenv("OPENAI_API_KEY"),
+        }
+    ],
+    "temperature": 0.4,
+})
+
+
 
 
 
 
 def create_sales_agent():
-    """
-    Creates and returns the skincare sales AutoGen agent.
-    """
-
-    llm_config = get_llm_config()
-
     sales_agent = AssistantAgent(
         name="SkincareSalesAgent",
         system_message=system_message,
-        llm_config=llm_config,
     )
 
     return sales_agent
+
 
 
 
