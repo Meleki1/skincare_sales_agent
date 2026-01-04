@@ -1,6 +1,6 @@
 fastapi
 uvicorn
-autogen
+autogen-agentchat
 requests
 python-dotenv
 
