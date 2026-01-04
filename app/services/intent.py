@@ -1,6 +1,7 @@
 import os
 from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_agentchat.models import OpenAIChatCompletionClient
+
 
 INTENT_PROMPT = """
 You are an intent detection agent for a skincare sales assistant.
@@ -30,8 +31,12 @@ def detect_intent(user_message: str) -> str:
         system_message=INTENT_PROMPT,
     )
 
-    response = intent_agent.generate_reply(
-        messages=[{"role": "user", "content": user_message}]
+    # ✅ CORRECT way to run an agent in modern AutoGen
+    result = intent_agent.run(
+        task=user_message
     )
 
-    return response.strip().lower()
+    # result.messages[-1].content contains the model reply
+    intent = result.messages[-1].content.strip().lower()
+
+    return intent
