@@ -1,14 +1,14 @@
-import os
+from pathlib import Path
 
 def load_documents():
-    folder_path = "company_data"
-    combined_text = ""
+    base_dir = Path(__file__).resolve().parent
+    company_data_dir = base_dir / "company_data"
 
-    for filename in os.listdir(folder_path):
-        file_path = os.path.join(folder_path, filename)
+    documents = []
 
-        with open(file_path, "r", encoding="utf-8") as file:
-            combined_text += f"\n\n--- {filename.upper()} ---\n"
-            combined_text += file.read()
+    for file_path in company_data_dir.iterdir():
+        if file_path.is_file():
+            with open(file_path, "r", encoding="utf-8") as f:
+                documents.append(f.read())
 
-    return combined_text
+    return "\n".join(documents)
