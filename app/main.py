@@ -6,12 +6,9 @@ from app.services.payment import initialize_payment, verify_payment
 from app.agent import create_sales_agent, handle_user_message
 from app.db.database import init_db
 from fastapi import Request, Header, HTTPException
-from app.services.webhook import (
-    verify_paystack_signature,
-    handle_paystack_event
-)
-
-
+from fastapi import Request
+from app.services.telegram import send_telegram_message
+from app.services.webhook import verify_paystack_signature, handle_paystack_event
 
 
 
@@ -107,6 +104,47 @@ async def paystack_webhook(
     handle_paystack_event(event)
 
     return {"status": "success"}
+
+
+@app.post("/telegram/webhook")
+async def telegram_webhook(request: Request):
+    data = await request.json()
+
+    # Safety check
+    if "message" not in data:
+        return {"status": "ignored"}
+
+    message = data["message"]
+
+    chat_id = message["chat"]["id"]
+    text = message.get("text")
+
+    # Ignore non-text messages
+    if not text:
+        send_telegram_message(chat_id, "Please send a text message.")
+        return {"status": "ok"}
+
+    session_id = str(chat_id)
+
+    # Lazy-load agent
+    global sales_agent
+    if sales_agent is None:
+        sales_agent = create_sales_agent()
+
+    # Use existing AI logic
+    result = handle_user_message(
+        agent=sales_agent,
+        session_id=session_id,
+        user_message=text
+    )
+
+    reply_text = result["reply"]
+
+    # Send response back to Telegram
+    send_telegram_message(chat_id, reply_text)
+
+    return {"status": "ok"}
+
 
 @app.get("/health")
 def health_check():
