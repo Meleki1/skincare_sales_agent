@@ -30,3 +30,6 @@ class ConversationMemory:
         """
         if session_id in self.sessions:
             del self.sessions[session_id]
+
+
+memory = ConversationMemory()
