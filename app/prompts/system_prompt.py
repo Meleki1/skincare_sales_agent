@@ -1,4 +1,5 @@
-from knowledge import load_documents
+from app.knowledge import load_documents
+
 
 
 company_info = load_documents()
