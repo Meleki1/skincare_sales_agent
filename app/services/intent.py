@@ -1,6 +1,5 @@
 import os
-from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.models import OpenAIChatCompletionClient
+from autogen_agentchat.agents import AssistantAgent, OpenAIChatCompletionClient
 
 
 INTENT_PROMPT = """
@@ -31,12 +30,7 @@ def detect_intent(user_message: str) -> str:
         system_message=INTENT_PROMPT,
     )
 
-    # ✅ CORRECT way to run an agent in modern AutoGen
-    result = intent_agent.run(
-        task=user_message
-    )
+    result = intent_agent.run(task=user_message)
 
-    # result.messages[-1].content contains the model reply
     intent = result.messages[-1].content.strip().lower()
-
     return intent
