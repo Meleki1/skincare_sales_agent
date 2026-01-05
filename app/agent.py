@@ -71,7 +71,8 @@ async def handle_user_message(agent, session_id: str, user_message: str) -> dict
     memory.add_message(session_id, role="assistant", content=reply)
 
     return {
-        "reply": reply,
-        "intent": intent,
-        "action": action_result["action"],
+    "reply": reply,
+    "intent": intent,
+    "action": action_result["action"],
+    "data": action_result.get("data", {})
     }

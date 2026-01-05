@@ -9,6 +9,7 @@ from fastapi import Request, Header, HTTPException
 from fastapi import Request
 from app.services.telegram import send_telegram_message
 from app.services.webhook import verify_paystack_signature, handle_paystack_event
+from app.services.telegram import send_telegram_message, send_telegram_payment_button
 
 
 
@@ -140,8 +141,18 @@ async def telegram_webhook(request: Request):
 
     reply_text = result["reply"]
 
-    # Send response back to Telegram
-    send_telegram_message(chat_id, reply_text)
+    if result["action"] == "payment_link_created":
+        payment_url = result["data"]["payment_url"]
+
+        send_telegram_payment_button(
+            chat_id=chat_id,
+            payment_url=payment_url
+        )
+    else:
+        send_telegram_message(
+            chat_id=chat_id,
+            text=result["reply"]
+    )
 
     return {"status": "ok"}
 
