@@ -1,6 +1,6 @@
 import os
 from autogen_agentchat.agents import AssistantAgent
-from autogen_agentchat.agents import OpenAIChatCompletionClient
+from autogen_ext.models.openai import OpenAIChatCompletionClient
 from app.prompts.system_prompt import system_message
 from app.services.memory import memory
 from app.services.intent import detect_intent
