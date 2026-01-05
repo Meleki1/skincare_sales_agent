@@ -27,13 +27,8 @@ def create_sales_agent():
 
 
 async def handle_user_message(agent, session_id: str, user_message: str) -> dict:
-    """
-    Handle user messages with intent detection and action routing.
-    """
-
     intent = await detect_intent(user_message)
 
-    # Save user message
     memory.add_message(session_id, role="user", content=user_message)
 
     action_result = handle_intent_action(intent)
@@ -47,12 +42,15 @@ async def handle_user_message(agent, session_id: str, user_message: str) -> dict
     else:
         messages = memory.get_messages(session_id)
 
-        reply = agent.generate_reply(
-            messages=messages + [
-                {"role": "system", "content": f"Detected intent: {intent}"},
-                {"role": "user", "content": user_message},
-            ]
+        result = await agent.run(
+            task=user_message,
+            context={
+                "conversation": messages,
+                "intent": intent
+            }
         )
+
+        reply = result.messages[-1].content
 
     memory.add_message(session_id, role="assistant", content=reply)
 
