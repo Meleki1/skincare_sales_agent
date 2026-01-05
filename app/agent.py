@@ -31,14 +31,38 @@ async def handle_user_message(agent, session_id: str, user_message: str) -> dict
 
     memory.add_message(session_id, role="user", content=user_message)
 
-    action_result = handle_intent_action(intent)
+    # ✅ BUILD USER DATA FOR SYSTEM ACTIONS
+    user_data = {
+        "session_id": session_id,
+        "message": user_message
+    }
+
+    # OPTIONAL: extract email if present
+    if "@" in user_message and "." in user_message:
+        user_data["email"] = user_message.strip()
+
+    # OPTIONAL: extract amount (basic version)
+    # You can hardcode product price for now
+    user_data["amount"] = 15000  # ₦15,000 (example)
+
+    action_result = handle_intent_action(intent, user_data=user_data)
 
     # System-driven action
-    if action_result["action"] != "continue_chat":
+    if action_result["action"] == "payment_link_created":
+        payment_url = action_result["data"]["payment_url"]
+
+        reply = (
+        "✅ Your secure payment link is ready:\n\n"
+        f"{payment_url}\n\n"
+        "Please complete the payment using the link above. "
+        "Once done, reply *Paid* so I can confirm your order."
+        )
+
+    elif action_result["action"] != "continue_chat":
         reply = action_result["data"].get(
             "message",
             "Please proceed."
-        )
+    )
     else:
         # Agent already has system prompt; just run it
         result = await agent.run(task=user_message)
