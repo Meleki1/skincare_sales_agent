@@ -1,5 +1,6 @@
 import os
-from autogen_agentchat.agents import AssistantAgent, OpenAIChatCompletionClient
+from autogen_agentchat.agents import AssistantAgent
+from autogen_ext.models.openai import OpenAIChatCompletionClient
 
 
 INTENT_PROMPT = """
