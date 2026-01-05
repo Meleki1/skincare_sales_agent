@@ -27,52 +27,59 @@ def create_sales_agent():
 
 
 async def handle_user_message(agent, session_id: str, user_message: str) -> dict:
+    # 1️⃣ Detect intent
     intent = await detect_intent(user_message)
 
+    # 2️⃣ Store user message in memory
     memory.add_message(session_id, role="user", content=user_message)
 
-    # ✅ BUILD USER DATA FOR SYSTEM ACTIONS
+    # 3️⃣ Build structured user_data for system actions
     user_data = {
-        "session_id": session_id,
-        "message": user_message
+        "session_id": session_id
     }
 
-    # OPTIONAL: extract email if present
+    # Extract email if user sent one
     if "@" in user_message and "." in user_message:
         user_data["email"] = user_message.strip()
+        memory.set_value(session_id, "email", user_message.strip())
 
-    # OPTIONAL: extract amount (basic version)
-    # You can hardcode product price for now
-    user_data["amount"] = 15000  # ₦15,000 (example)
+    # Retrieve stored email if already collected
+    stored_email = memory.get_value(session_id, "email")
+    if stored_email:
+        user_data["email"] = stored_email
 
-    action_result = handle_intent_action(intent, user_data=user_data)
+    # Set product amount (replace later with dynamic product pricing)
+    user_data["amount"] = memory.get_value(session_id, "amount") or 7000
+    memory.set_value(session_id, "amount", user_data["amount"])
 
-    # System-driven action
+    # 4️⃣ HARD RULE: payment intent must be handled by system, not AI
+    if intent == "payment_initiation":
+        action_result = handle_intent_action(intent, user_data)
+    else:
+        action_result = handle_intent_action(intent)
+
+    # 5️⃣ SYSTEM ACTIONS OVERRIDE AI COMPLETELY
     if action_result["action"] == "payment_link_created":
-        payment_url = action_result["data"]["payment_url"]
-
-        reply = (
-        "✅ Your secure payment link is ready:\n\n"
-        f"{payment_url}\n\n"
-        "Please complete the payment using the link above. "
-        "Once done, reply *Paid* so I can confirm your order."
-        )
+        # 🔒 Do NOT let AI talk here
+        reply = ""
 
     elif action_result["action"] != "continue_chat":
-        reply = action_result["data"].get(
-            "message",
-            "Please proceed."
-    )
+        reply = action_result["data"].get("message", "")
+
     else:
-        # Agent already has system prompt; just run it
+        # 6️⃣ Normal AI conversation
         result = await agent.run(task=user_message)
         reply = result.messages[-1].content
 
-    memory.add_message(session_id, role="assistant", content=reply)
+    # 7️⃣ Store assistant reply (if any)
+    if reply:
+        memory.add_message(session_id, role="assistant", content=reply)
 
+    # 8️⃣ Return a strict, frontend-safe response
     return {
-    "reply": reply,
-    "intent": intent,
-    "action": action_result["action"],
-    "data": action_result.get("data", {})
+        "reply": reply,
+        "intent": intent,
+        "action": action_result["action"],
+        "data": action_result.get("data", {})
     }
+
