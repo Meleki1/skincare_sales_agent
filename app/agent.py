@@ -40,16 +40,8 @@ async def handle_user_message(agent, session_id: str, user_message: str) -> dict
             "Please proceed."
         )
     else:
-        messages = memory.get_messages(session_id)
-
-        result = await agent.run(
-            task=user_message,
-            context={
-                "conversation": messages,
-                "intent": intent
-            }
-        )
-
+        # Agent already has system prompt; just run it
+        result = await agent.run(task=user_message)
         reply = result.messages[-1].content
 
     memory.add_message(session_id, role="assistant", content=reply)
