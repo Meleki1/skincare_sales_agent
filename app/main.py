@@ -132,7 +132,7 @@ async def telegram_webhook(request: Request):
         sales_agent = create_sales_agent()
 
     # Use existing AI logic
-    result = handle_user_message(
+    result = await handle_user_message(
         agent=sales_agent,
         session_id=session_id,
         user_message=text

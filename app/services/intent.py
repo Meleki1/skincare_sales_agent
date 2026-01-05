@@ -19,7 +19,7 @@ Reply with ONLY the intent label.
 """
 
 
-def detect_intent(user_message: str) -> str:
+async def detect_intent(user_message: str) -> str:
     model_client = OpenAIChatCompletionClient(
         model="gpt-4o-mini",
         api_key=os.getenv("OPENAI_API_KEY"),
@@ -31,7 +31,7 @@ def detect_intent(user_message: str) -> str:
         system_message=INTENT_PROMPT,
     )
 
-    result = intent_agent.run(task=user_message)
+    result = await intent_agent.run(task=user_message)
 
     intent = result.messages[-1].content.strip().lower()
     return intent

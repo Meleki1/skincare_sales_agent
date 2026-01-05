@@ -1,6 +1,6 @@
 import os
 from autogen_agentchat.agents import AssistantAgent
-from autogen_ext.models.openai import OpenAIChatCompletionClient
+from autogen_agentchat.agents import OpenAIChatCompletionClient
 from app.prompts.system_prompt import system_message
 from app.services.memory import memory
 from app.services.intent import detect_intent
@@ -26,7 +26,7 @@ def create_sales_agent():
     return agent
 
 
-def handle_user_message(agent, session_id: str, user_message: str) -> dict:
+async def handle_user_message(agent, session_id: str, user_message: str) -> dict:
     """
     Handle user messages with intent detection and action routing.
     """
