@@ -7,56 +7,42 @@ from app.services.storage import (
 )
 
 
-
 def handle_intent_action(
     intent: str,
     user_data: dict | None = None
 ) -> dict:
     """
     Decide what action to take based on intent.
-
-    Returns a dict describing the action result.
+    MUST always return a dict with 'action' and 'data'.
     """
 
-    # Default: no action, just chat
+    # ✅ DEFAULT SAFE RESPONSE
     result = {
         "action": "continue_chat",
-        "data": None
+        "data": {}
     }
 
     # -------------------------
     # PURCHASE INTENT
     # -------------------------
     if intent == "purchase_intent":
-        result["action"] = "request_payment_details"
-        result["data"] = {
-            "message": "Please provide your email so I can generate a secure payment link."
+        return {
+            "action": "request_payment_details",
+            "data": {
+                "message": "Please provide your email so I can generate a secure payment link."
+            }
         }
 
     # -------------------------
     # INITIATE PAYMENT
     # -------------------------
-    elif intent == "payment_initiation" and user_data:
-        email = user_data.get("email")
-        amount = user_data.get("amount")  # naira
-
-        if email and amount:
-            payment_data = initialize_payment(
-                email=email,
-                amount=amount * 100  # convert to kobo
-            )
-
-            result["action"] = "payment_link_created"
-            result["data"] = {
-                "payment_url": payment_data["authorization_url"],
-                "reference": payment_data["reference"]
-            }
-
-
-    elif intent == "payment_initiation" and user_data:
+    if intent == "payment_initiation" and user_data:
         email = user_data.get("email")
         amount = user_data.get("amount")
         session_id = user_data.get("session_id")
+
+        if not email or not amount or not session_id:
+            return result  # fallback safely
 
         customer_id = create_customer(
             session_id=session_id,
@@ -67,7 +53,7 @@ def handle_intent_action(
 
         payment_data = initialize_payment(
             email=email,
-            amount=amount * 100
+            amount=amount * 100  # convert to kobo
         )
 
         create_payment(
@@ -77,19 +63,24 @@ def handle_intent_action(
             status="pending"
         )
 
-        result["action"] = "payment_link_created"
-        result["data"] = {
-            "payment_url": payment_data["authorization_url"],
-            "reference": payment_data["reference"]
+        return {
+            "action": "payment_link_created",
+            "data": {
+                "payment_url": payment_data["authorization_url"],
+                "reference": payment_data["reference"],
+                "order_id": order_id
+            }
         }
-
 
     # -------------------------
     # VERIFY PAYMENT
     # -------------------------
-    elif intent == "payment_confirmation" and user_data:
+    if intent == "payment_confirmation" and user_data:
         reference = user_data.get("reference")
         order_id = user_data.get("order_id")
+
+        if not reference or not order_id:
+            return result
 
         payment_status = verify_payment(reference)
 
@@ -103,8 +94,10 @@ def handle_intent_action(
         if payment_status["status"] == "success":
             mark_order_paid(order_id)
 
-        result["action"] = "payment_verified"
-        result["data"] = payment_status
+        return {
+            "action": "payment_verified",
+            "data": payment_status
+        }
 
-
-    
+    # ✅ FINAL FALLBACK
+    return result
