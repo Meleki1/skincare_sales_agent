@@ -149,10 +149,12 @@ async def telegram_webhook(request: Request):
             payment_url=payment_url
         )
     else:
-        send_telegram_message(
-            chat_id=chat_id,
-            text=result["reply"]
-    )
+        if result["reply"]:  # ✅ only send if text is not empty
+            send_telegram_message(
+                chat_id=chat_id,
+                text=result["reply"]
+            )
+
 
     return {"status": "ok"}
 
