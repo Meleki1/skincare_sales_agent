@@ -90,20 +90,32 @@ def verify_payment_endpoint(request: PaymentVerifyRequest):
     }
 
 
-@app.post("/webhook/paystack")
-async def paystack_webhook(
-    request: Request,
-    x_paystack_signature: str = Header(None)
-):
+@app.post("/paystack/webhook")
+async def paystack_webhook(request: Request):
     payload = await request.body()
+    signature = request.headers.get("x-paystack-signature")
 
-    if not verify_paystack_signature(payload, x_paystack_signature):
-        raise HTTPException(status_code=400, detail="Invalid signature")
+    if not verify_paystack_signature(payload, signature):
+        return Response(status_code=400)
 
-    event = json.loads(payload.decode())
-    handle_paystack_event(event)
+    event = json.loads(payload)
 
-    return {"status": "success"}
+    if event["event"] == "charge.success":
+        reference = event["data"]["reference"]
+
+        payment = get_payment_by_reference(reference)
+        chat_id = payment.chat_id
+
+        # unlock payment lock
+        ACTIVE_PAYMENTS.discard(str(chat_id))
+
+        send_telegram_message(
+            chat_id,
+            "✅ Payment confirmed!\n\nYour order is now being processed."
+        )
+
+    return {"status": "ok"}
+
 
 
 @app.post("/telegram/webhook")
