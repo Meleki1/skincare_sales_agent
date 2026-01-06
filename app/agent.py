@@ -30,56 +30,48 @@ async def handle_user_message(agent, session_id: str, user_message: str) -> dict
     # 1️⃣ Detect intent
     intent = await detect_intent(user_message)
 
-    # 2️⃣ Store user message in memory
+    # 2️⃣ Store user message
     memory.add_message(session_id, role="user", content=user_message)
 
-    # 3️⃣ Build structured user_data for system actions
+    # 3️⃣ Build user_data ONLY from current message
     user_data = {
         "session_id": session_id
     }
 
-    # Extract email if user sent one
+    # Extract email directly if user sent it
     if "@" in user_message and "." in user_message:
         user_data["email"] = user_message.strip()
-        memory.set_value(session_id, "email", user_message.strip())
 
-    # Retrieve stored email if already collected
-    stored_email = memory.get_value(session_id, "email")
-    if stored_email:
-        user_data["email"] = stored_email
+    # Hardcode product price for now (safe MVP)
+    user_data["amount"] = 7000  # ₦7,000
 
-    # Set product amount (replace later with dynamic product pricing)
-    user_data["amount"] = memory.get_value(session_id, "amount") or 7000
-    memory.set_value(session_id, "amount", user_data["amount"])
-
-    # 4️⃣ HARD RULE: payment intent must be handled by system, not AI
+    # 4️⃣ Force system control on payment intent
     if intent == "payment_initiation":
         action_result = handle_intent_action(intent, user_data)
     else:
         action_result = handle_intent_action(intent)
 
-    # 5️⃣ SYSTEM ACTIONS OVERRIDE AI COMPLETELY
+    # 5️⃣ SYSTEM ACTIONS OVERRIDE AI
     if action_result["action"] == "payment_link_created":
-        # 🔒 Do NOT let AI talk here
-        reply = ""
+        reply = ""  # Telegram button will handle UI
 
     elif action_result["action"] != "continue_chat":
         reply = action_result["data"].get("message", "")
 
     else:
-        # 6️⃣ Normal AI conversation
         result = await agent.run(task=user_message)
         reply = result.messages[-1].content
 
-    # 7️⃣ Store assistant reply (if any)
+    # 6️⃣ Store assistant reply if any
     if reply:
         memory.add_message(session_id, role="assistant", content=reply)
 
-    # 8️⃣ Return a strict, frontend-safe response
+    # 7️⃣ Return response
     return {
         "reply": reply,
         "intent": intent,
         "action": action_result["action"],
         "data": action_result.get("data", {})
     }
+
 
