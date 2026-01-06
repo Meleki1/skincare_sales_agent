@@ -7,6 +7,10 @@ from app.services.intent import detect_intent
 from app.services.controller import handle_intent_action
 
 
+ACTIVE_PAYMENTS = set()
+
+
+
 def create_sales_agent():
     """
     Create the AutoGen assistant agent with explicit model client.
