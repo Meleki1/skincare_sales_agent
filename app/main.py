@@ -1,14 +1,15 @@
 
 
 import json
-from fastapi import FastAPI
+from fastapi import FastAPI, Response
 from pydantic import BaseModel
 from app.services.payment import initialize_payment, verify_payment
-from app.agent import create_sales_agent, handle_user_message
+from app.agent import create_sales_agent, handle_user_message, generate_payment_confirmation, ACTIVE_PAYMENTS
 from app.db.database import init_db
 from fastapi import Request, Header, HTTPException
 from app.services.telegram import send_telegram_message, send_telegram_payment_button
 from app.services.webhook import verify_paystack_signature, handle_paystack_event
+from app.services.storage import get_session_id_by_payment_reference, mark_order_paid, create_payment
 
 
 
@@ -102,17 +103,39 @@ async def paystack_webhook(request: Request):
 
     if event["event"] == "charge.success":
         reference = event["data"]["reference"]
-
-        payment = get_payment_by_reference(reference)
-        chat_id = payment.chat_id
-
-        # unlock payment lock
-        ACTIVE_PAYMENTS.discard(str(chat_id))
-
-        send_telegram_message(
-            chat_id,
-            "✅ Payment confirmed!\n\nYour order is now being processed."
-        )
+        amount = event["data"].get("amount", 0)  # amount in kobo
+        status = event["data"].get("status")
+        
+        # Get session_id from payment reference
+        session_id = get_session_id_by_payment_reference(reference)
+        
+        if session_id:
+            # Unlock payment lock
+            ACTIVE_PAYMENTS.discard(session_id)
+            
+            # Handle payment event (save to database)
+            handle_paystack_event(event)
+            
+            # Generate confirmation message using the chatbot agent
+            global sales_agent
+            if sales_agent is None:
+                sales_agent = create_sales_agent()
+            
+            confirmation_message = await generate_payment_confirmation(
+                agent=sales_agent,
+                session_id=session_id,
+                amount=amount
+            )
+            
+            # Send confirmation via Telegram if it's a Telegram session
+            # (session_id is chat_id for Telegram)
+            try:
+                chat_id = int(session_id)
+                send_telegram_message(chat_id, confirmation_message)
+            except (ValueError, TypeError):
+                # Not a Telegram chat_id, might be a different platform
+                # The confirmation is already saved in memory
+                pass
 
     return {"status": "ok"}
 

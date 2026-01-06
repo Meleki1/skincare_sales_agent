@@ -51,6 +51,34 @@ def create_sales_agent():
     return agent
 
 
+async def generate_payment_confirmation(agent, session_id: str, amount: float = None) -> str:
+    """
+    Generate a payment confirmation message using the chatbot agent.
+    """
+    # Convert amount from kobo to naira if provided
+    amount_text = ""
+    if amount:
+        amount_naira = amount / 100
+        amount_text = f" of ₦{amount_naira:,.0f}"
+    
+    confirmation_task = (
+        f"The customer's payment{amount_text} has been successfully confirmed. "
+        "Generate a warm, professional confirmation message that: "
+        "1. Confirms the payment was successful "
+        "2. Thanks them for their purchase "
+        "3. Mentions that their order is being processed "
+        "4. Keeps it concise and friendly (2-3 sentences max)"
+    )
+    
+    result = await agent.run(task=confirmation_task)
+    confirmation_message = result.messages[-1].content
+    
+    # Add the confirmation to memory
+    memory.add_message(session_id, role="assistant", content=confirmation_message)
+    
+    return confirmation_message
+
+
 async def handle_user_message(agent, session_id: str, user_message: str) -> dict:
     # 🔒 HARD STOP: if payment already started, AI is muted
     if session_id in ACTIVE_PAYMENTS:

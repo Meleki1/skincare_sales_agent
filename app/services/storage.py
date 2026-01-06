@@ -55,3 +55,26 @@ def create_payment(order_id, reference, amount, status):
 
     conn.commit()
     conn.close()
+
+
+def get_session_id_by_payment_reference(reference: str) -> str | None:
+    """
+    Get session_id from payment reference by joining payments -> orders -> customers.
+    Returns None if not found.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT c.session_id
+        FROM payments p
+        JOIN orders o ON p.order_id = o.id
+        JOIN customers c ON o.customer_id = c.id
+        WHERE p.reference = ?
+        LIMIT 1
+    """, (reference,))
+
+    result = cur.fetchone()
+    conn.close()
+
+    return result[0] if result else None
