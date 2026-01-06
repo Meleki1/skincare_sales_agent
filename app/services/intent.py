@@ -11,6 +11,7 @@ Classify the user's intent into ONE of the following:
 - product_inquiry
 - pricing
 - purchase_intent
+- payment_initiation (when user confirms they want to pay, e.g., "yes", "proceed", "I'll pay", "let's pay")
 - payment_confirmation
 - support_request
 - general_question

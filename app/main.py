@@ -1,15 +1,14 @@
 
 
+import json
 from fastapi import FastAPI
 from pydantic import BaseModel
 from app.services.payment import initialize_payment, verify_payment
 from app.agent import create_sales_agent, handle_user_message
 from app.db.database import init_db
 from fastapi import Request, Header, HTTPException
-from fastapi import Request
-from app.services.telegram import send_telegram_message
-from app.services.webhook import verify_paystack_signature, handle_paystack_event
 from app.services.telegram import send_telegram_message, send_telegram_payment_button
+from app.services.webhook import verify_paystack_signature, handle_paystack_event
 
 
 
@@ -40,8 +39,8 @@ class ChatResponse(BaseModel):
 
 
 @app.post("/chat", response_model=ChatResponse)
-def chat(request: ChatRequest):
-    result = handle_user_message(
+async def chat(request: ChatRequest):
+    result = await handle_user_message(
         agent=sales_agent,
         session_id=request.session_id,
         user_message=request.message

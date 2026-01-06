@@ -53,7 +53,8 @@ def handle_intent_action(
 
         payment_data = initialize_payment(
             email=email,
-            amount=amount * 100  # convert to kobo
+            amount=amount * 100,  # convert to kobo
+            order_id=str(order_id)
         )
 
         create_payment(

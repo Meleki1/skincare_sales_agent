@@ -7,10 +7,11 @@ PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 PAYSTACK_BASE_URL = "https://api.paystack.co"
 
 
-def initialize_payment(email: str, amount: int) -> dict:
+def initialize_payment(email: str, amount: int, order_id: str = None) -> dict:
     """
     Initialize a Paystack payment.
     amount: amount in kobo (₦1000 = 100000)
+    order_id: optional order ID to include in metadata
     """
 
     reference = str(uuid.uuid4())
@@ -25,10 +26,12 @@ def initialize_payment(email: str, amount: int) -> dict:
         "email": email,
         "amount": amount,
         "reference": reference,
-        "metadata": {
+    }
+    
+    if order_id:
+        payload["metadata"] = {
             "order_id": order_id
         }
-}
 
     
 
