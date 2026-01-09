@@ -1,14 +1,14 @@
 from app.db.database import get_connection
 
 
-def create_customer(session_id, email, name=None, phone=None):
+def create_customer(session_id, email, name=None, phone=None, address=None):
     conn = get_connection()
     cur = conn.cursor()
 
     cur.execute("""
-        INSERT INTO customers (session_id, email, name, phone)
-        VALUES (?, ?, ?, ?)
-    """, (session_id, email, name, phone))
+        INSERT INTO customers (session_id, email, name, phone, address)
+        VALUES (?, ?, ?, ?, ?)
+    """, (session_id, email, name, phone, address))
 
     conn.commit()
     customer_id = cur.lastrowid
@@ -78,3 +78,75 @@ def get_session_id_by_payment_reference(reference: str) -> str | None:
     conn.close()
 
     return result[0] if result else None
+
+
+def get_session_id_by_order_id(order_id: int) -> str | None:
+    """
+    Get session_id from order_id by joining orders -> customers.
+    Returns None if not found.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT c.session_id
+        FROM orders o
+        JOIN customers c ON o.customer_id = c.id
+        WHERE o.id = ?
+        LIMIT 1
+    """, (order_id,))
+
+    result = cur.fetchone()
+    conn.close()
+
+    return result[0] if result else None
+
+
+def payment_exists(reference: str) -> bool:
+    """
+    Check if a payment with the given reference already exists.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT COUNT(*) FROM payments WHERE reference = ?
+    """, (reference,))
+
+    count = cur.fetchone()[0]
+    conn.close()
+
+    return count > 0
+
+
+def get_order_id_by_reference(reference: str) -> int | None:
+    """
+    Get order_id from payment reference.
+    Returns None if not found.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        SELECT order_id FROM payments WHERE reference = ? LIMIT 1
+    """, (reference,))
+
+    result = cur.fetchone()
+    conn.close()
+
+    return result[0] if result else None
+
+
+def update_payment_status(reference: str, status: str):
+    """
+    Update payment status for an existing payment.
+    """
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("""
+        UPDATE payments SET status = ? WHERE reference = ?
+    """, (status, reference))
+
+    conn.commit()
+    conn.close()

@@ -9,7 +9,12 @@ from app.db.database import init_db
 from fastapi import Request, Header, HTTPException
 from app.services.telegram import send_telegram_message, send_telegram_payment_button
 from app.services.webhook import verify_paystack_signature, handle_paystack_event
-from app.services.storage import get_session_id_by_payment_reference, mark_order_paid, create_payment
+from app.services.storage import (
+    get_session_id_by_payment_reference, 
+    get_session_id_by_order_id,
+    mark_order_paid, 
+    create_payment
+)
 
 
 
@@ -93,49 +98,80 @@ def verify_payment_endpoint(request: PaymentVerifyRequest):
 
 @app.post("/paystack/webhook")
 async def paystack_webhook(request: Request):
-    payload = await request.body()
-    signature = request.headers.get("x-paystack-signature")
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    try:
+        payload = await request.body()
+        signature = request.headers.get("x-paystack-signature")
 
-    if not verify_paystack_signature(payload, signature):
+        if not verify_paystack_signature(payload, signature):
+            logger.warning("Invalid Paystack webhook signature")
+            return Response(status_code=400)
+
+        event = json.loads(payload)
+        logger.info(f"Received Paystack webhook event: {event.get('event')}")
+
+        if event["event"] == "charge.success":
+            reference = event["data"]["reference"]
+            amount = event["data"].get("amount", 0)  # amount in kobo
+            status = event["data"].get("status")
+            
+            logger.info(f"Processing successful payment: reference={reference}, amount={amount}, status={status}")
+            
+            # Handle payment event first (save to database)
+            # This returns order_id which we can use as fallback
+            order_id = handle_paystack_event(event)
+            
+            # Try to get session_id from payment reference
+            session_id = get_session_id_by_payment_reference(reference)
+            
+            # Fallback: try to get session_id from order_id if payment lookup failed
+            if not session_id and order_id:
+                logger.info(f"Payment reference lookup failed, trying order_id: {order_id}")
+                session_id = get_session_id_by_order_id(order_id)
+            
+            if session_id:
+                logger.info(f"Found session_id: {session_id} for payment {reference}")
+                
+                # Unlock payment lock
+                ACTIVE_PAYMENTS.discard(session_id)
+                
+                # Generate confirmation message using the chatbot agent
+                global sales_agent
+                if sales_agent is None:
+                    sales_agent = create_sales_agent()
+                
+                try:
+                    confirmation_message = await generate_payment_confirmation(
+                        agent=sales_agent,
+                        session_id=session_id,
+                        amount=amount
+                    )
+                    
+                    logger.info(f"Generated confirmation message for session {session_id}")
+                    
+                    # Send confirmation via Telegram if it's a Telegram session
+                    # (session_id is chat_id for Telegram)
+                    try:
+                        chat_id = int(session_id)
+                        send_telegram_message(chat_id, confirmation_message)
+                        logger.info(f"Sent confirmation message to Telegram chat {chat_id}")
+                    except (ValueError, TypeError):
+                        # Not a Telegram chat_id, might be a different platform
+                        # The confirmation is already saved in memory
+                        logger.info(f"Session {session_id} is not a Telegram chat_id, confirmation saved to memory")
+                except Exception as e:
+                    logger.error(f"Error generating confirmation message: {str(e)}", exc_info=True)
+            else:
+                logger.warning(f"Could not find session_id for payment reference {reference} and order_id {order_id}")
+
+    except json.JSONDecodeError as e:
+        logger.error(f"Invalid JSON in webhook payload: {str(e)}")
         return Response(status_code=400)
-
-    event = json.loads(payload)
-
-    if event["event"] == "charge.success":
-        reference = event["data"]["reference"]
-        amount = event["data"].get("amount", 0)  # amount in kobo
-        status = event["data"].get("status")
-        
-        # Get session_id from payment reference
-        session_id = get_session_id_by_payment_reference(reference)
-        
-        if session_id:
-            # Unlock payment lock
-            ACTIVE_PAYMENTS.discard(session_id)
-            
-            # Handle payment event (save to database)
-            handle_paystack_event(event)
-            
-            # Generate confirmation message using the chatbot agent
-            global sales_agent
-            if sales_agent is None:
-                sales_agent = create_sales_agent()
-            
-            confirmation_message = await generate_payment_confirmation(
-                agent=sales_agent,
-                session_id=session_id,
-                amount=amount
-            )
-            
-            # Send confirmation via Telegram if it's a Telegram session
-            # (session_id is chat_id for Telegram)
-            try:
-                chat_id = int(session_id)
-                send_telegram_message(chat_id, confirmation_message)
-            except (ValueError, TypeError):
-                # Not a Telegram chat_id, might be a different platform
-                # The confirmation is already saved in memory
-                pass
+    except Exception as e:
+        logger.error(f"Error processing webhook: {str(e)}", exc_info=True)
+        return Response(status_code=500)
 
     return {"status": "ok"}
 

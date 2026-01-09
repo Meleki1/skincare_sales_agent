@@ -38,15 +38,22 @@ def handle_intent_action(
     # -------------------------
     if intent == "payment_initiation" and user_data:
         email = user_data.get("email")
+        name = user_data.get("name")
+        phone = user_data.get("phone")
         amount = user_data.get("amount")
         session_id = user_data.get("session_id")
 
         if not email or not amount or not session_id:
             return result  # fallback safely
 
+        # Create customer with all collected information
+        address = user_data.get("address")
         customer_id = create_customer(
             session_id=session_id,
-            email=email
+            email=email,
+            name=name,
+            phone=phone,
+            address=address
         )
 
         order_id = create_order(customer_id, amount)

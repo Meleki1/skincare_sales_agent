@@ -18,9 +18,16 @@ def init_db():
         session_id TEXT,
         name TEXT,
         email TEXT,
-        phone TEXT
+        phone TEXT,
+        address TEXT
     )
     """)
+    
+    # Add address column if it doesn't exist (for existing databases)
+    try:
+        cursor.execute("ALTER TABLE customers ADD COLUMN address TEXT")
+    except sqlite3.OperationalError:
+        pass  # Column already exists
 
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS orders (

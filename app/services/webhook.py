@@ -27,6 +27,7 @@ def verify_paystack_signature(payload: bytes, signature: str) -> bool:
 def handle_paystack_event(event: dict):
     """
     Handle Paystack webhook events.
+    Returns order_id if successful, None otherwise.
     """
 
     event_type = event.get("event")
@@ -40,13 +41,33 @@ def handle_paystack_event(event: dict):
         metadata = data.get("metadata", {})
         order_id = metadata.get("order_id")
 
-        # Save payment
-        create_payment(
-            order_id=order_id,
-            reference=reference,
-            amount=amount,
-            status=status
-        )
+        # Try to get order_id from existing payment if not in metadata
+        if not order_id:
+            from app.services.storage import get_order_id_by_reference
+            order_id = get_order_id_by_reference(reference)
+
+        if not order_id:
+            print(f"Warning: No order_id found for payment reference {reference}")
+            return None
+
+        # Check if payment already exists to avoid duplicates
+        from app.services.storage import payment_exists
+        if not payment_exists(reference):
+            # Save payment
+            create_payment(
+                order_id=order_id,
+                reference=reference,
+                amount=amount,
+                status=status
+            )
+        else:
+            # Update existing payment status
+            from app.services.storage import update_payment_status
+            update_payment_status(reference, status)
 
         if status == "success":
             mark_order_paid(order_id)
+        
+        return order_id
+    
+    return None
