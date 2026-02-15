@@ -150,6 +150,38 @@ async def generate_order_summary(agent, session_id: str, amount: float) -> str:
 # -----------------------------
 # Main handler
 # -----------------------------
+
+
+async def generate_payment_confirmation(agent, session_id: str, amount: float = None) -> str:
+    """
+    Generate a payment confirmation message using the chatbot agent.
+    amount is expected in kobo (Paystack sends kobo).
+    """
+    amount_text = ""
+    if amount:
+        try:
+            amount_naira = amount / 100
+            amount_text = f" of ₦{amount_naira:,.0f}"
+        except Exception:
+            amount_text = ""
+
+    confirmation_task = (
+        f"The customer's payment{amount_text} has been successfully confirmed. "
+        "Write a warm, professional confirmation message that: "
+        "1) Confirms payment was successful, "
+        "2) Thanks them, "
+        "3) Says the order is being processed. "
+        "Keep it concise (2-3 sentences max)."
+    )
+
+    result = await agent.run(task=confirmation_task)
+    confirmation_message = result.messages[-1].content
+
+    memory.add_message(session_id, role="assistant", content=confirmation_message)
+    return confirmation_message
+
+
+
 async def handle_user_message(agent, session_id: str, user_message: str) -> dict:
     """
     Contract returned:
